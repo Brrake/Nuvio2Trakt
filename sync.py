@@ -291,22 +291,22 @@ if UPLOAD_ON_TRAKT:
     response_watchlist = requests.post(url=TRAKT_WATCHLIST_URL,headers=headers, json=trakt_json)
     if response_watchlist.status_code == 200 or response_watchlist.status_code == 201: 
         print('Watchlist importata su Trakt!')
-        with open('out/res/watchlist.json', 'w', encoding='utf-8') as f:
-            json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
+    with open('out/res/watchlist.json', 'w', encoding='utf-8') as f:
+        json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
     response_del_history = requests.post(url=TRAKT_HISTORY_URL+'/remove',headers=headers, json=trakt_history_json)
+    with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
+        json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
     if response_del_history.status_code == 200 or response_del_history.status_code == 201:
-        with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
-            json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
         response_history = requests.post(url=TRAKT_HISTORY_URL,headers=headers, json=trakt_history_json)
         if response_history.status_code == 200 or response_history.status_code == 201: 
             print('History importata su Trakt!')
-            with open('out/res/history.json', 'w', encoding='utf-8') as f:
-                json.dump(response_history.json(), f, indent=2, ensure_ascii=False)
+        with open('out/res/history.json', 'w', encoding='utf-8') as f:
+            json.dump(response_history.json(), f, indent=2, ensure_ascii=False)
     response_watched = requests.post(url=TRAKT_WATCHED_URL,headers=headers, json=trakt_watched_json)
     if response_watched.status_code == 200 or response_watched.status_code == 201: 
         print('Watched importata su Trakt!')
-        with open('out/res/watched.json', 'w', encoding='utf-8') as f:
-            json.dump(response_watched.json(), f, indent=2, ensure_ascii=False)
+    with open('out/res/watched.json', 'w', encoding='utf-8') as f:
+        json.dump(response_watched.json(), f, indent=2, ensure_ascii=False)
 with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
     json.dump(trakt_json, f, indent=2, ensure_ascii=False)
 with open(OUTPUT_HISTORY_FILE, 'w', encoding='utf-8') as f:
