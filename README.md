@@ -18,7 +18,7 @@ Utility Python per convertire un backup Nuvio in file compatibili con Trakt e, o
 ## Requisiti
 
 - Python 3.10 o superiore.
-- Un backup Nuvio valido.
+- Un backup Nuvio valido. [NuvioSync](https://nuviosync.com/nuvio-backup-restore) è ottimo.
 - Un'applicazione Trakt e un access token valido.
 
 Installa le dipendenze:
