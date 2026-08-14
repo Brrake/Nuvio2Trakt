@@ -215,7 +215,6 @@ for imdb_id, show_info in shows_data.items():
             final_shows.append(out)
         else:
             final_history_shows.append(trakt_show)
-            print('\n\n\n',trakt_show['seasons'][-1]['episodes'][-1]['watched_at'],'\n\n\n')
             out = deepcopy(trakt_show)
             out.pop("seasons", None)
             out['watched_at'] = trakt_show['seasons'][-1]['episodes'][-1]['watched_at']
