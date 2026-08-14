@@ -297,6 +297,7 @@ if UPLOAD_ON_TRAKT:
     with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
         json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
     if response_del_history.status_code == 200 or response_del_history.status_code == 201:
+        print('History ripulita su Trakt...')
         response_history = requests.post(url=TRAKT_HISTORY_URL,headers=headers, json=trakt_history_json)
         if response_history.status_code == 200 or response_history.status_code == 201: 
             print('History importata su Trakt!')
