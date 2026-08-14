@@ -1,113 +1,112 @@
 # 🎬 Trakt Sync Tool
 
-Script Python per sincronizzare watchlist, history e watched status su [Trakt.tv](https://trakt.tv/) partendo da dati IMDB.
+Utility Python per convertire un backup Nuvio in file compatibili con Trakt e, opzionalmente, caricarli tramite API.
 
-## 📋 Indice
+## Funzionalità
 
-- [Funzionalità¶¶](#-funzionalità¶¶)
-- [Requisiti](#-requisiti)
-- [Installazione](#-installazione)
-- [Configurazione](#-configurazione)
-- [Utilizzo](#-utilizzo)
-- [Struttura output](#-struttura-output)
-- [Debug mode](#-debug-mode)
-- [Note](#-note)
+- 📥 Legge un backup Nuvio da `NUVIO_BACKUP_FILE`.
+- 🎬 Gestisce film e serie TV.
+- 📺 Mantiene gli episodi visti con stagione, episodio e timestamp.
+- 🕘 Genera file intermedi per watchlist e history.
+- 🌐 Risolve gli IMDB ID tramite Trakt Search API.
+- 💾 Usa una cache SQLite persistente per evitare richieste ripetute.
+- ☁️ Può aggiornare watchlist, history e watched status su Trakt.
+- 🐛 Offre file intermedi di debug e logging con emoji.
 
----
+> Nota: `UPLOAD_ON_TRAKT=true` esegue operazioni distruttive sulla history: prima la rimuove e poi la reinserisce. Usa questa modalità solo dopo avere verificato i JSON generati localmente.
 
-## ✨ Funzionalità¶¶
+## Requisiti
 
-- 🔄 **Sincronizzazione bidirezionale**: gestisce watchlist, history e watched status
-- 📺 **Supporto completo**: film e serie TV con stagioni/episodi
-- 💾 **Caching intelligente**: riduce le chiamate API con cache SQLite persistente
-- 🐛 **Debug mode**: salvataggio dati intermedi per troubleshooting
-- ☁️ **Upload automatico**: invio diretto a Trakt (opzionale)
-- 📊 **Logging dettagliato**: output chiaro con emoji e statistiche
+- Python 3.10 o superiore.
+- Un backup Nuvio valido.
+- Un'applicazione Trakt e un access token valido.
 
----
-
-## 📦 Requisiti
-
-- Python 3.8+
-- Account Trakt.tv con API credentials
-- File di input già generati da Nuvio (`in/nuviosync-backup-Brrake.json`)
-
-### Dipendenze
+Installa le dipendenze:
 
 ```bash
-pip install requests requests-cache python-dotenv
+python -m pip install -r requirements.txt
 ```
 
-Oppure:
+`requirements.txt` dovrebbe contenere almeno:
+
+```text
+python-dotenv
+requests
+requests-cache
+```
+
+## Installazione
 
 ```bash
-pip install -r requirements.txt
+git clone <repository-url>
+cd trakt-sync
+python -m venv .venv
+source .venv/bin/activate       # Linux/macOS
+# .venv\Scripts\activate        # Windows PowerShell
+python -m pip install -r requirements.txt
+cp .env.example .env
 ```
 
----
+Inserisci il backup nella posizione indicata da `NUVIO_BACKUP_FILE`, oppure specifica un percorso assoluto nel file `.env`.
 
-## 🚀 Installazione
+## Configurazione
 
-1. **Clona o scarica lo script**:
-   ```bash
-   git clone <repository-url>
-   cd trakt-sync
-   ```
-
-2. **Installa le dipendenze**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Crea il file `.env`**:
-   ```bash
-   cp .env.example .env
-   ```
-
----
-
-## ⚙️ Configurazione
-
-Crea un file `.env` nella root del progetto con le seguenti variabili:
+Esempio `.env`:
 
 ```env
-# 🔑 Trakt API Credentials
-TRAKT_CLIENT_ID=201dc70c5ec6af530f12f079ea1922733f6e1085ad7b02f36d8e011b75bcea7d
-TRAKT_ACCESS_TOKEN=SXZOlBlGbwXxiSRVuqLYPbBDkBJwUpSA
+TRAKT_CLIENT_ID=your_client_id
+TRAKT_ACCESS_TOKEN=your_access_token
 
-# 🌐 Trakt API Endpoints
 TRAKT_IMBD_SEARCH_URL=https://api.trakt.tv/search/imdb/
 TRAKT_WATCHLIST_URL=https://api.trakt.tv/sync/watchlist
 TRAKT_HISTORY_URL=https://api.trakt.tv/sync/history
 TRAKT_WATCHED_URL=https://api.trakt.tv/users/me/lists/gia-visti/items
 
-# ⚡ Configurazione
 NUVIO_BACKUP_FILE=in/nuviosync-backup-Brrake.json
 DEBUG=false
-UPLOAD_ON_TRAKT=trueon
-
+UPLOAD_ON_TRAKT=false
 ```
 
-### Come ottenere le credenziali Trakt
+Non committare mai `.env`: contiene credenziali sensibili. Usa `.env.example` solo con valori segnaposto.
 
-1. Vai su [Trakt API Apps](https://trakt.tv/oauth/applications)
-2. Crea una nuova applicazione
-3. Copia **Client ID** e genera un **Access Token**
-4. Inseriscili nel file `.env`
+### Credenziali Trakt
 
----
+1. Apri [Trakt API Applications](https://trakt.tv/oauth/applications).
+2. Crea un'applicazione.
+3. Copia il Client ID.
+4. Genera un access token OAuth.
+5. Inserisci i valori nel file `.env`.
 
-## 🎯 Utilizzo
+## Utilizzo
 
-### Esecuzione base
+### 1. Generazione dei file intermedi
+
+La funzione viene eseguita automaticamente da `sync.py`, ma può essere testata separatamente:
 
 ```bash
-python sync.py
+python utils/generate.py
 ```
 
-### Con upload su Trakt
+Questo produce:
 
-Imposta `UPLOAD_ON_TRAKT=true` nel file `.env`:
+```text
+out/trakt_watchlist.json
+out/trakt_history.json
+```
+
+### 2. Sincronizzazione locale
+
+Esegui lo script senza upload per controllare l'output:
+
+```bash
+UPLOAD_ON_TRAKT=false python sync.py
+```
+
+Su Windows imposta `UPLOAD_ON_TRAKT=false` nel `.env`.
+
+### 3. Upload su Trakt
+
+Dopo avere verificato i file locali:
 
 ```env
 UPLOAD_ON_TRAKT=true
@@ -119,163 +118,129 @@ Poi esegui:
 python sync.py
 ```
 
-### Con debug mode
+L'upload esegue, nell'ordine:
 
-Per salvare dati intermedi nella cartella `debug/`:
+1. Aggiornamento della watchlist.
+2. Rimozione della history inviata.
+3. Reinserimento della history.
+4. Aggiornamento del watched status.
 
-```env
-DEBUG=true
+## Formato input Nuvio
+
+Il backup deve contenere una struttura simile a:
+
+```json
+{
+  "original": {
+    "library": [
+      {
+        "content_id": "tt1234567",
+        "content_type": "movie",
+        "added_at": 1700000000000
+      }
+    ],
+    "watched": [
+      {
+        "content_id": "tt1234567",
+        "watched_at": 1700000000000,
+        "season": 1,
+        "episode": 1
+      }
+    ]
+  }
+}
 ```
 
----
+I timestamp Nuvio sono interpretati come Unix timestamp in millisecondi e convertiti in UTC ISO-8601.
 
-## 📁 Struttura output
+## Output
 
-### File generati
-
-```
+```text
 out/
+├── trakt_watchlist.json
+├── trakt_history.json
 ├── sync/
-│   ├── trakt_sync.json          # Watchlist finale (film + serie)
-│   ├── trakt_history_sync.json  # History completa
-│   └── trakt_watched_sync.json  # Watched status
-└── res/                         # (solo se UPLOAD_ON_TRAKT=true)
-    ├── watchlist.json           # Risposta API watchlist
-    ├── history_del.json         # Risposta API delete history
-    ├── history.json             # Risposta API insert history
-    └── watched.json             # Risposta API watched
+│   ├── trakt_sync.json
+│   ├── trakt_history_sync.json
+│   └── trakt_watched_sync.json
+└── res/
+    ├── watchlist.json
+    ├── history_del.json
+    ├── history.json
+    └── watched.json
 ```
 
-### File di debug
+La directory `out/res` viene creata solo quando l'upload è abilitato.
 
-```
-debug/
-├── shows_data.json    # Dati serie TV prima dell'elaborazione
-└── movies_data.json   # Dati film prima dell'elaborazione
-```
+## Cache
 
----
+Le risposte della Search API vengono salvate nella cache SQLite sotto `cache/`.
 
-## 🐛 Debug mode
-
-Abilita la modalità debug per:
-
-- Salvare i dati grezzi prima dell'elaborazione
-- Avere logging più dettagliato
-- Isolare problemi di formattazione dati
-
-```env
-DEBUG=true
-```
-
-I file di debug sono utili per:
-- Verificare la struttura dei dati in input
-- Controllare che tutti gli IMDB ID siano presenti
-- Analizzare problemi di sincronizzazione
-
----
-
-## 📊 Output logging
-
-Lo script produce un output strutturato come:
-
-```
-============================================================
-🎬  TRAKT SYNC - Sincronizzazione Watchlist & History
-============================================================
-
-📦 Generazione dati primari...
-✅ Dati primari generati
-
-📂 Caricamento dati da file...
-✅ Caricati 150 elementi totali
-
-🔄 Processamento elementi...
-✅ Processati: 120 episodi, 25 film, 5 serie
-⚠️  Saltati 3 elementi incompleti
-
-────────────────────────────────────────────────────────────
-📺  ELABORAZIONE SERIE TV
-────────────────────────────────────────────────────────────
-
-[1/5] 📺 Processing show tt0944947...
-  🌐 API: tt0944947 (show)
-  ✅ Il Trono di Spade - 8 stagione/i
-
-────────────────────────────────────────────────────────────
-💾  SALVATAGGIO FILE
-────────────────────────────────────────────────────────────
-  ✅ out/sync/trakt_sync.json
-  ✅ out/sync/trakt_history_sync.json
-  ✅ out/sync/trakt_watched_sync.json
-
-============================================================
-📊  RIEPILOGO FINALE
-============================================================
-
-✅ Operazione completata con successo!
-
-📦 Dati elaborati:
-   • Film in watchlist: 25
-   • Serie TV in watchlist: 5
-   • Film in history: 18
-   • Serie TV in history: 4
-   • Film in watched: 18
-   • Serie TV in watched: 4
-
-📺 Dettagli serie TV:
-   • Totale stagioni: 42
-   • Totale episodi: 387
-```
-
----
-
-## ⚠️ Note
-
-### Rate limiting
-
-Lo script include automaticamente un delay di **1 secondo** tra le chiamate API reali (non cached) per rispettare i limiti di Trakt.
-
-### Cache
-
-Le chiamate API sono cached indefinitamente in `cache/trakt_cache.sqlite`. Per forzare il refresh:
+Per forzare una nuova risoluzione degli ID:
 
 ```bash
-rm cache/trakt_cache.sqlite
+rm -rf cache/
 ```
 
-### Formattazione date
+Su Windows elimina manualmente la directory `cache`.
 
-Le date sono convertite nel formato ISO 8601 richiesto da Trakt:
+La cache è persistente e non ha scadenza; valuta di cancellarla se Trakt restituisce dati aggiornati o se cambi endpoint.
+
+## Debug e troubleshooting
+
+Con:
+
+```env
+DEBUG=true
 ```
-YYYY-MM-DDTHH:MM:SS.000Z
+
+vengono salvati dati intermedi in:
+
+```text
+debug/shows_data.json
+debug/movies_data.json
 ```
 
-### Errori comuni
+Errori comuni:
 
-| Errore | Causa | Soluzione |
-|--------|-------|-----------|
-| `401 Unauthorized` | Token scaduto o errato | Rigenera l'access token su Trakt |
-| `404 Not Found` | IMDB ID non trovato | Verifica che l'ID sia corretto |
-| `429 Too Many Requests` | Rate limiting | Attendi qualche minuto e riprova |
-| `FileNotFoundError` | File di input mancanti | Esegui prima `generate_primary_json()` |
+| Errore | Possibile causa | Azione |
+|---|---|---|
+| `FileNotFoundError` | Backup o file intermedi assenti | Controlla `NUVIO_BACKUP_FILE` e la directory di esecuzione |
+| `401 Unauthorized` | Token scaduto o credenziali errate | Rigenera l'access token |
+| `404 Not Found` | Endpoint o IMDB ID errato | Verifica URL e dati input |
+| `429 Too Many Requests` | Limite API superato | Attendi e lascia attiva la cache |
+| `JSONDecodeError` | Backup o risposta API non validi | Valida il JSON e conserva la risposta in `out/res` |
 
----
+## Sicurezza
 
-## 📝 License
+- Mantieni `.env`, backup Nuvio, `cache/`, `out/` e `debug/` fuori dal repository.
+- Revoca immediatamente eventuali token Trakt esposti.
+- Non inserire credenziali reali nel README o in `.env.example`.
+- Testa sempre con `UPLOAD_ON_TRAKT=false` prima di modificare dati remoti.
 
-Questo progetto è fornito così com'è per uso personale.
+## Struttura consigliata
 
----
+```text
+.
+├── sync.py
+├── utils/
+│   └── generate.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── in/
+├── out/
+├── cache/
+└── debug/
+```
 
-## 🤝 Supporto
+## Limitazioni note
 
-Per problemi o domande:
+- La risoluzione dei contenuti dipende dall'IMDB ID presente nel backup.
+- La cronologia viene ricostruita in base ai dati `watched` disponibili nel backup.
+- Lo script non dovrebbe essere eseguito contemporaneamente in più processi sullo stesso file di cache.
+- Prima dell'upload è consigliabile creare una copia dei JSON generati.
 
-1. Abilita la debug mode (`DEBUG=true`)
-2. Controlla i file in `debug/`
-3. Verifica le risposte API in `out/res/` (se `UPLOAD_ON_TRAKT=true`)
+## Licenza
 
----
-
-**Happy syncing!** 🎬📺✨
+Uso personale. Aggiungi qui la licenza del progetto se prevedi di pubblicarlo.

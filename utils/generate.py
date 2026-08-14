@@ -1,78 +1,157 @@
+"""Generate Trakt-compatible intermediate JSON files from a Nuvio backup."""
+
+from __future__ import annotations
+
 import json
-from datetime import datetime, timezone
-import dotenv
 import os
-dotenv.load_dotenv()
-def generate_primary_json():
-    watchlist = []
-    history = []
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
-    bk_path = os.getenv("NUVIO_BACKUP_FILE", "")
+from dotenv import load_dotenv
 
-    with open(bk_path, encoding='utf-8') as data:
-        parsed = json.load(data)
-        library = parsed['original']['library']
-        watched = parsed['original']['watched']
+load_dotenv()
 
-    for lib in library:
-        dt = datetime.fromtimestamp(lib['added_at'] / 1000, tz=timezone.utc)
-        watchlisted_at = dt.strftime('%Y-%m-%dT%H:%M:%SZ')  # Formato ISO corretto
-        
-        if lib['content_type'] == 'series':
-            content_type = 'show'
+DEFAULT_BACKUP_FILE = "in/input.json"
+WATCHLIST_OUTPUT = Path("out/trakt_watchlist.json")
+HISTORY_OUTPUT = Path("out/trakt_history.json")
+
+
+def utc_iso(milliseconds: int | float | None) -> str | None:
+    """Convert a Unix timestamp in milliseconds to a UTC ISO-8601 string."""
+    if milliseconds is None:
+        return None
+
+    try:
+        timestamp = float(milliseconds) / 1000
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def load_backup(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Load and validate the library and watched collections from a backup."""
+    with path.open("r", encoding="utf-8") as backup_file:
+        payload = json.load(backup_file)
+
+    original = payload.get("original", {})
+    library = original.get("library", [])
+    watched = original.get("watched", [])
+
+    if not isinstance(library, list) or not isinstance(watched, list):
+        raise ValueError("Il backup deve contenere original.library e original.watched come liste")
+
+    return library, watched
+
+
+def write_json(path: Path, payload: list[dict[str, Any]]) -> None:
+    """Write JSON output, creating its parent directory when necessary."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as output_file:
+        json.dump(payload, output_file, indent=2, ensure_ascii=False)
+        output_file.write("\n")
+
+
+def generate_primary_json() -> None:
+    """Generate watchlist and history files consumed by the sync script."""
+    backup_path = Path(os.getenv("NUVIO_BACKUP_FILE", DEFAULT_BACKUP_FILE))
+    if not backup_path.is_file():
+        raise FileNotFoundError(f"Backup Nuvio non trovato: {backup_path}")
+
+    library, watched = load_backup(backup_path)
+
+    watched_by_content: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in watched:
+        content_id = item.get("content_id")
+        if content_id:
+            watched_by_content[content_id].append(item)
+
+    watchlist: list[dict[str, Any]] = []
+    history: list[dict[str, Any]] = []
+    skipped = 0
+
+    for library_item in library:
+        content_id = library_item.get("content_id")
+        content_type = library_item.get("content_type")
+        watchlisted_at = utc_iso(library_item.get("added_at"))
+
+        if not content_id or not watchlisted_at:
+            skipped += 1
+            continue
+
+        watched_items = watched_by_content.get(content_id, [])
+
+        if content_type == "series":
+            watchlist.append(
+                {
+                    "imdb_id": content_id,
+                    "type": "show",
+                    "watchlisted_at": watchlisted_at,
+                }
+            )
+        elif content_type == "movie":
+            if len(watched_items) == 1:
+                watched_at = utc_iso(watched_items[0].get("watched_at"))
+                if watched_at:
+                    history.append(
+                        {
+                            "imdb_id": content_id,
+                            "type": "movie",
+                            "watched_at": watched_at,
+                        }
+                    )
+                else:
+                    watchlist.append(
+                        {
+                            "imdb_id": content_id,
+                            "type": "movie",
+                            "watchlisted_at": watchlisted_at,
+                        }
+                    )
+            else:
+                watchlist.append(
+                    {
+                        "imdb_id": content_id,
+                        "type": "movie",
+                        "watchlisted_at": watchlisted_at,
+                    }
+                )
         else:
-            content_type = lib['content_type']
-        
-        # Cerca se è stato visto
-        risultati = [item for item in watched if item.get('content_id') == lib['content_id']]
-        
-        if content_type == 'movie' and len(risultati) == 1:
-            # Film già visto → HISTORY
-            dt_wa = datetime.fromtimestamp(risultati[0]['watched_at'] / 1000, tz=timezone.utc)
-            watched_at = dt_wa.strftime('%Y-%m-%dT%H:%M:%SZ')
-            
-            history.append({
-                "imdb_id": lib['content_id'],
-                "type": "movie",
-                "watched_at": watched_at
-            })
-        elif content_type == 'show':
-            # Serie TV → WATCHLIST (solo la serie, non gli episodi)
-            watchlist.append({
-                "imdb_id": lib['content_id'],
-                "type": "show",
-                "watchlisted_at": watchlisted_at
-            })
-            
-            # Aggiungi gli episodi visti alla HISTORY
-            for ep in risultati:
-                dt_wa_ep = datetime.fromtimestamp(ep['watched_at'] / 1000, tz=timezone.utc)
-                watched_at_ep = dt_wa_ep.strftime('%Y-%m-%dT%H:%M:%SZ')
-                
-                history.append({
-                    "imdb_id": ep['content_id'],
-                    "type": "episode",
-                    "season": ep['season'],
-                    "episode": ep['episode'],
-                    "watched_at": watched_at_ep
-                })
-        else:
-            # Film non visto → WATCHLIST
-            watchlist.append({
-                "imdb_id": lib['content_id'],
-                "type": "movie",
-                "watchlisted_at": watchlisted_at
-            })
+            skipped += 1
+            continue
 
-    # Salva due file separati
-    #shows = [wl for wl in watchlist if wl['type'] == 'show']
-    #with open('out/trakt_watchlist_shows.json', 'w', encoding='utf-8') as f:
-    #    json.dump(shows, f, indent=2)
-    with open('out/trakt_watchlist.json', 'w', encoding='utf-8') as f:
-        json.dump(watchlist, f, indent=2)
+        for episode in watched_items:
+            watched_at = utc_iso(episode.get("watched_at"))
+            season = episode.get("season")
+            episode_number = episode.get("episode")
 
-    with open('out/trakt_history.json', 'w', encoding='utf-8') as f:
-        json.dump(history, f, indent=2)
+            if (
+                content_type == "series"
+                and watched_at
+                and season is not None
+                and episode_number is not None
+            ):
+                history.append(
+                    {
+                        "imdb_id": content_id,
+                        "type": "episode",
+                        "season": season,
+                        "episode": episode_number,
+                        "watched_at": watched_at,
+                    }
+                )
 
-    print(f"Watchlist: {len(watchlist)} elementi")
-    print(f"History: {len(history)} elementi")
+    write_json(WATCHLIST_OUTPUT, watchlist)
+    write_json(HISTORY_OUTPUT, history)
+
+    print(f"📦 Watchlist: {len(watchlist)} elementi")
+    print(f"🕘 History: {len(history)} elementi")
+    if skipped:
+        print(f"⚠️ Elementi ignorati: {skipped}")
+
+
+if __name__ == "__main__":
+    generate_primary_json()
