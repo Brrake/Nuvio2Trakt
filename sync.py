@@ -176,8 +176,7 @@ if DEBUG:
 # ─────────────────────────────────────────────────────────────────────────────
 final_shows = []
 final_movies = []
-final_watched_shows = []
-final_watched_movies = []
+
 final_history_shows = []
 final_history_movies = []
 
@@ -198,6 +197,7 @@ for imdb_id, show_info in shows_data.items():
     if results and len(results) > 0:
         shows_found += 1
         show = results[0].get('show', {})
+        show_episodes = show.get('aired_episodes', 0)
         show_ids = show.get('ids', {})
         show_title = show.get('title', 'Unknown')
         
@@ -251,22 +251,21 @@ for imdb_id, show_info in shows_data.items():
                 })
             
             trakt_show['seasons'].append(season_obj)
+
         
-        if trakt_show['seasons'] == []:
-            out = deepcopy(trakt_show)
-            out.pop("seasons", None)
-            if formatted_date:
-                out['watchlisted_at'] = formatted_date
-            final_shows.append(out)
-        else:
-            final_history_shows.append(trakt_show)
-            out = deepcopy(trakt_show)
-            out.pop("seasons", None)
+        out = deepcopy(trakt_show)
+        out.pop("seasons", None)
+        if formatted_date:
+            out['watchlisted_at'] = formatted_date
+        if len(trakt_show['seasons']) > 0:
             out['watched_at'] = trakt_show['seasons'][-1]['episodes'][-1]['watched_at']
-            final_watched_shows.append(out)
-        
+        if out.get('watched_at',''):
+            final_history_shows.append(trakt_show)
+        else : final_shows.append(out)
+
+
         season_count = len(show_info['seasons'])
-        print(f"  ✅ {show_title} - {season_count} stagione/i")
+        print(f"  ✅ {show_title} - {season_count} stagione/i - {show_episodes} episodi")
     else:
         shows_not_found += 1
         print(f"  ❌ Serie non trovata: {imdb_id}")
@@ -321,7 +320,6 @@ for imdb_id, movie_info in movies_data.items():
         if movie_info.get('watched_at'):
             trakt_movie['watched_at'] = movie_info['watched_at']
             final_history_movies.append(trakt_movie)
-            final_watched_movies.append(trakt_movie)
         
         print(f"  ✅ {movie_title}")
     else:
@@ -339,10 +337,6 @@ trakt_history_json = {
     'movies': final_history_movies,
     'shows': final_history_shows
 }
-trakt_watched_json = {
-    'movies': final_watched_movies,
-    'shows': final_watched_shows
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ☁️ Upload su Trakt (opzionale)
@@ -358,10 +352,10 @@ if UPLOAD_ON_TRAKT:
     # Watchlist
     print("\n📤 Invio watchlist...")
     response_watchlist = requests.post(url=TRAKT_WATCHLIST_URL, headers=headers, json=trakt_json)
-    with open('out/res/watchlist.json', 'w', encoding='utf-8') as f:
-        json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
     
     if response_watchlist.status_code in [200, 201]:
+        with open('out/res/watchlist.json', 'w', encoding='utf-8') as f:
+            json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
         print("  ✅ Watchlist importata su Trakt!")
     else:
         print(f"  ⚠️  Errore watchlist: {response_watchlist.status_code}")
@@ -369,36 +363,25 @@ if UPLOAD_ON_TRAKT:
     # History - rimozione
     print("\n🗑️  Pulizia history...")
     response_del_history = requests.post(url=TRAKT_HISTORY_URL+'/remove', headers=headers, json=trakt_history_json)
-    with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
-        json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
     
     if response_del_history.status_code in [200, 201]:
         print("  ✅ History ripulita")
-        
+        with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
+            json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
+            
         # History - inserimento
         print("\n📤 Invio history...")
         response_history = requests.post(url=TRAKT_HISTORY_URL, headers=headers, json=trakt_history_json)
-        with open('out/res/history.json', 'w', encoding='utf-8') as f:
-            json.dump(response_history.json(), f, indent=2, ensure_ascii=False)
-        
+    
         if response_history.status_code in [200, 201]:
+            with open('out/res/history.json', 'w', encoding='utf-8') as f:
+                json.dump(response_history.json(), f, indent=2, ensure_ascii=False)
             print("  ✅ History importata su Trakt!")
         else:
             print(f"  ⚠️  Errore history: {response_history.status_code}")
     else:
         print(f"  ⚠️  Errore pulizia history: {response_del_history.status_code}")
     
-    # Watched
-    print("\n📤 Invio watched...")
-    response_watched = requests.post(url=TRAKT_WATCHED_URL, headers=headers, json=trakt_watched_json)
-    with open('out/res/watched.json', 'w', encoding='utf-8') as f:
-        json.dump(response_watched.json(), f, indent=2, ensure_ascii=False)
-    
-    if response_watched.status_code in [200, 201]:
-        print("  ✅ Watched importata su Trakt!")
-    else:
-        print(f"  ⚠️  Errore watched: {response_watched.status_code}")
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 💾 Salvataggio file
 # ─────────────────────────────────────────────────────────────────────────────
@@ -413,10 +396,6 @@ print(f"  ✅ {OUTPUT_FILE}")
 with open(OUTPUT_HISTORY_FILE, 'w', encoding='utf-8') as f:
     json.dump(trakt_history_json, f, indent=2, ensure_ascii=False)
 print(f"  ✅ {OUTPUT_HISTORY_FILE}")
-
-with open(OUTPUT_WATCHED_FILE, 'w', encoding='utf-8') as f:
-    json.dump(trakt_watched_json, f, indent=2, ensure_ascii=False)
-print(f"  ✅ {OUTPUT_WATCHED_FILE}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 📊 Riepilogo finale
@@ -444,8 +423,6 @@ print(f"   • Film in watchlist: {len(final_movies)}")
 print(f"   • Serie TV in watchlist: {len(final_shows)}")
 print(f"   • Film in history: {len(final_history_movies)}")
 print(f"   • Serie TV in history: {len(final_history_shows)}")
-print(f"   • Film in watched: {len(final_watched_movies)}")
-print(f"   • Serie TV in watched: {len(final_watched_shows)}")
 print(f"\n📺 Dettagli serie TV:")
 print(f"   • Totale stagioni: {total_seasons}")
 print(f"   • Totale episodi: {total_episodes}")
