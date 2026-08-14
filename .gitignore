@@ -5,3 +5,5 @@ cache
 .env
 __pycache__
 in
+.env.*
+!.env.example
