@@ -243,4 +243,4 @@ Errori comuni:
 
 ## Licenza
 
-Uso personale. Aggiungi qui la licenza del progetto se prevedi di pubblicarlo.
+Questo progetto è rilasciato sotto licenza GPL-3.0. Vedi il file [LICENSE](LICENSE) per i dettagli.
