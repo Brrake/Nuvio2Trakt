@@ -39,7 +39,7 @@ requests-cache
 
 ```bash
 git clone https://github.com/Brrake/Nuvio2Trakt
-cd trakt-sync
+cd Nuvio2Trakt
 python -m venv .venv
 source .venv/bin/activate       # Linux/macOS
 # .venv\Scripts\activate        # Windows PowerShell
