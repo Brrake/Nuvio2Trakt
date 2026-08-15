@@ -38,7 +38,7 @@ requests-cache
 ## Installazione
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Brrake/Nuvio2Trakt
 cd trakt-sync
 python -m venv .venv
 source .venv/bin/activate       # Linux/macOS
