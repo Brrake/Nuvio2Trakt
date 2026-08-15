@@ -10,7 +10,7 @@ Utility Python per convertire un backup Nuvio in file compatibili con Trakt e, o
 - 🕘 Genera file intermedi per watchlist e history.
 - 🌐 Risolve gli IMDB ID tramite Trakt Search API.
 - 💾 Usa una cache SQLite persistente per evitare richieste ripetute.
-- ☁️ Può aggiornare watchlist, history e watched status su Trakt.
+- ☁️ Può aggiornare watchlist e history su Trakt.
 - 🐛 Offre file intermedi di debug e logging con emoji.
 
 > Nota: `UPLOAD_ON_TRAKT=true` esegue operazioni distruttive sulla history: prima la rimuove e poi la reinserisce. Usa questa modalità solo dopo avere verificato i JSON generati localmente.
@@ -60,7 +60,6 @@ TRAKT_ACCESS_TOKEN=your_access_token
 TRAKT_IMBD_SEARCH_URL=https://api.trakt.tv/search/imdb/
 TRAKT_WATCHLIST_URL=https://api.trakt.tv/sync/watchlist
 TRAKT_HISTORY_URL=https://api.trakt.tv/sync/history
-TRAKT_WATCHED_URL=https://api.trakt.tv/users/me/lists/gia-visti/items
 
 NUVIO_BACKUP_FILE=in/nuviosync-backup-Brrake.json
 DEBUG=false
@@ -123,7 +122,6 @@ L'upload esegue, nell'ordine:
 1. Aggiornamento della watchlist.
 2. Rimozione della history inviata.
 3. Reinserimento della history.
-4. Aggiornamento del watched status.
 
 ## Formato input Nuvio
 
@@ -161,13 +159,11 @@ out/
 ├── trakt_history.json
 ├── sync/
 │   ├── trakt_sync.json
-│   ├── trakt_history_sync.json
-│   └── trakt_watched_sync.json
+│   └── trakt_history_sync.json
 └── res/
     ├── watchlist.json
     ├── history_del.json
-    ├── history.json
-    └── watched.json
+    └── history.json
 ```
 
 La directory `out/res` viene creata solo quando l'upload è abilitato.
