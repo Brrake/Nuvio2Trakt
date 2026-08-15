@@ -2,11 +2,9 @@ import json
 from datetime import datetime
 from collections import defaultdict
 from utils.generate import generate_primary_json
-import requests
-import time
+from utils.trakt import add_to_trakt_history,add_to_trakt_watchlist,delete_from_trakt_history,get_trakt_info
 import os
 import dotenv
-import requests_cache
 from copy import deepcopy
 from pathlib import Path
 
@@ -15,31 +13,19 @@ dotenv.load_dotenv()
 # ─────────────────────────────────────────────────────────────────────────────
 # 🔧 Configurazione
 # ─────────────────────────────────────────────────────────────────────────────
-TRAKT_CLIENT_ID = os.getenv("TRAKT_CLIENT_ID", "")
-TRAKT_ACCESS_TOKEN = os.getenv("TRAKT_ACCESS_TOKEN", "")
-TRAKT_IMBD_SEARCH_URL = os.getenv("TRAKT_IMBD_SEARCH_URL", "")
 UPLOAD_ON_TRAKT = os.getenv("UPLOAD_ON_TRAKT", "false") == "true"
-TRAKT_WATCHLIST_URL = os.getenv("TRAKT_WATCHLIST_URL", "")
-TRAKT_HISTORY_URL = os.getenv("TRAKT_HISTORY_URL", "")
-TRAKT_WATCHED_URL = os.getenv("TRAKT_WATCHED_URL", "")
 DEBUG = os.getenv("DEBUG", "false") == "true"
+CLEAN_OLD_HISTORY = os.getenv("CLEAN_OLD_HISTORY", "false") == "true"
 
 OUTPUT_FILE = "out/sync/trakt_sync.json"
 OUTPUT_HISTORY_FILE = "out/sync/trakt_history_sync.json"
 OUTPUT_WATCHED_FILE = "out/sync/trakt_watched_sync.json"
 
-CACHE_DIR = Path("cache")
-CACHE_DIR.mkdir(exist_ok=True)
-
 output_dir = os.path.dirname(OUTPUT_FILE)
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-trakt_session = requests_cache.CachedSession(
-    str(CACHE_DIR / "trakt_cache"),
-    backend="sqlite",
-    expire_after=None
-)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 🚀 Avvio
@@ -77,40 +63,6 @@ movies_data = defaultdict(lambda: {
     'watchlisted_at': None,
     'watched_at': None
 })
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 🌐 Funzione API Trakt
-# ─────────────────────────────────────────────────────────────────────────────
-headers = {
-    "Content-Type": "application/json",
-    "trakt-api-version": "2",
-    "trakt-api-key": TRAKT_CLIENT_ID,
-    "Authorization": f"Bearer {TRAKT_ACCESS_TOKEN}",
-}
-
-def get_trakt_info(imdb_id, media_type):
-    """Recupera informazioni da Trakt API per un IMDB ID."""
-    url = f"{TRAKT_IMBD_SEARCH_URL}{imdb_id}?type={media_type}"
-    
-    try:
-        response = trakt_session.get(url, headers=headers, timeout=15)
-        
-        if response.status_code == 200:
-            if response.from_cache:
-                print(f"  💾 Cache: {imdb_id} ({media_type})")
-            else:
-                print(f"  🌐 API: {imdb_id} ({media_type})")
-                time.sleep(1)  # Rate limiting solo per richieste reali
-            return response.json()
-        else:
-            print(f"  ❌ Errore API {response.status_code} per {imdb_id}")
-            
-    except requests_cache.requests.exceptions.RequestException as e:
-        print(f"  ❌ Errore richiesta: {e}")
-    except ValueError as e:
-        print(f"  ❌ JSON non valido: {e}")
-    
-    return None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 📊 Processamento elementi
@@ -346,42 +298,16 @@ if UPLOAD_ON_TRAKT:
     print("☁️  UPLOAD SU TRAKT")
     print("─"*60)
     
-    if not os.path.exists('out/res'):
-        os.makedirs('out/res', exist_ok=True)
-    
     # Watchlist
-    print("\n📤 Invio watchlist...")
-    response_watchlist = requests.post(url=TRAKT_WATCHLIST_URL, headers=headers, json=trakt_json)
-    
-    if response_watchlist.status_code in [200, 201]:
-        with open('out/res/watchlist.json', 'w', encoding='utf-8') as f:
-            json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
-        print("  ✅ Watchlist importata su Trakt!")
-    else:
-        print(f"  ⚠️  Errore watchlist: {response_watchlist.status_code}")
-    
+    add_to_trakt_watchlist(trakt_json)
     # History - rimozione
-    print("\n🗑️  Pulizia history...")
-    response_del_history = requests.post(url=TRAKT_HISTORY_URL+'/remove', headers=headers, json=trakt_history_json)
-    
-    if response_del_history.status_code in [200, 201]:
-        print("  ✅ History ripulita")
-        with open('out/res/history_del.json', 'w', encoding='utf-8') as f:
-            json.dump(response_del_history.json(), f, indent=2, ensure_ascii=False)
-            
-        # History - inserimento
-        print("\n📤 Invio history...")
-        response_history = requests.post(url=TRAKT_HISTORY_URL, headers=headers, json=trakt_history_json)
-    
-        if response_history.status_code in [200, 201]:
-            with open('out/res/history.json', 'w', encoding='utf-8') as f:
-                json.dump(response_history.json(), f, indent=2, ensure_ascii=False)
-            print("  ✅ History importata su Trakt!")
-        else:
-            print(f"  ⚠️  Errore history: {response_history.status_code}")
+    if CLEAN_OLD_HISTORY:
+        delete_from_trakt_history(trakt_history_json)
+        add_to_trakt_history(trakt_history_json)
     else:
-        print(f"  ⚠️  Errore pulizia history: {response_del_history.status_code}")
-    
+        # History - inserimento
+        add_to_trakt_history(trakt_history_json)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 💾 Salvataggio file
 # ─────────────────────────────────────────────────────────────────────────────
