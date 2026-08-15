@@ -54,13 +54,16 @@ Inserisci il backup nella posizione indicata da `NUVIO_BACKUP_FILE`, oppure spec
 Esempio `.env`:
 
 ```env
+# 🔑 Trakt API Credentials
 TRAKT_CLIENT_ID=your_client_id
 TRAKT_ACCESS_TOKEN=your_access_token
 
+# 🌐 Trakt API Endpoints
 TRAKT_IMBD_SEARCH_URL=https://api.trakt.tv/search/imdb/
 TRAKT_WATCHLIST_URL=https://api.trakt.tv/sync/watchlist
 TRAKT_HISTORY_URL=https://api.trakt.tv/sync/history
 
+# ⚡ Configurazione
 NUVIO_BACKUP_FILE=in/nuviosync-backup-Brrake.json
 DEBUG=false
 UPLOAD_ON_TRAKT=false
