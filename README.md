@@ -64,6 +64,7 @@ TRAKT_HISTORY_URL=https://api.trakt.tv/sync/history
 NUVIO_BACKUP_FILE=in/nuviosync-backup-Brrake.json
 DEBUG=false
 UPLOAD_ON_TRAKT=false
+CLEAN_OLD_HISTORY=false
 ```
 
 Non committare mai `.env`: contiene credenziali sensibili. Usa `.env.example` solo con valori segnaposto.
@@ -109,6 +110,7 @@ Dopo avere verificato i file locali:
 
 ```env
 UPLOAD_ON_TRAKT=true
+CLEAN_OLD_HISTORY=false
 ```
 
 Poi esegui:
@@ -120,7 +122,7 @@ python sync.py
 L'upload esegue, nell'ordine:
 
 1. Aggiornamento della watchlist.
-2. Rimozione della history inviata.
+2. Rimozione della history inviata. (opzionale, attivabile con `CLEAN_OLD_HISTORY`)
 3. Reinserimento della history.
 
 ## Formato input Nuvio
