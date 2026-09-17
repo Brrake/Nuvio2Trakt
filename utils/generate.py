@@ -40,11 +40,12 @@ def load_backup(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
     original = payload.get("original", {})
     library = original.get("library", [])
     watched = original.get("watched", [])
+    progress = original.get("progress", [])
 
     if not isinstance(library, list) or not isinstance(watched, list):
         raise ValueError("Il backup deve contenere original.library e original.watched come liste")
 
-    return library, watched
+    return library, watched, progress
 
 
 def write_json(path: Path, payload: list[dict[str, Any]]) -> None:
@@ -61,7 +62,7 @@ def generate_primary_json() -> None:
     if not backup_path.is_file():
         raise FileNotFoundError(f"Backup Nuvio non trovato: {backup_path}")
 
-    library, watched = load_backup(backup_path)
+    library, watched,progress = load_backup(backup_path)
 
     watched_by_content: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in watched:

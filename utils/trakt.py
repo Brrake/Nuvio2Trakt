@@ -63,7 +63,23 @@ def get_trakt_info(imdb_id, media_type):
         print(f"  ❌ JSON non valido: {e}")
     
     return None
-
+def get_trakt_watched(type):
+    """Recupera i dati dalla cronologia di Trakt"""
+    print("\n📥 Recupero watchlist...")
+    response_watched = requests.get(url=TRAKT_WATCHED_URL+f"/{type}", headers=headers,params={"extended": "progress"})
+    
+    if response_watched.status_code in [200, 201]:
+        return response_watched.json()
+        print("  ✅ Watched recuperata")
+def get_trakt_history():
+    """Recupera i dati dalla cronologia di Trakt"""
+    print("\n📥 Recupero history...")
+    response_history = requests.get(url=TRAKT_HISTORY_URL, headers=headers)
+    
+    if response_history.status_code in [200, 201]:
+        return response_history.json()
+        print("  ✅ History recuperata")
+    else: return None
 def delete_from_trakt_history(trakt_json):
     """Rimuove i dati dalla cronologia di Trakt in base ai dati forniti"""
     print("\n🗑️  Pulizia history...")
@@ -97,5 +113,25 @@ def add_to_trakt_watchlist(trakt_json):
         with open(f'{RES_PATH}/watchlist.json', 'w', encoding='utf-8') as f:
             json.dump(response_watchlist.json(), f, indent=2, ensure_ascii=False)
         print("  ✅ Watchlist importata su Trakt!")
+    else:
+        print(f"  ⚠️  Errore watchlist: {response_watchlist.status_code}")
+
+def add_to_trakt_list(name, imdb_id,type="movie"):
+    """Invia i dati alla watchlist di Trakt"""
+    print("\n📤 Invio watchlist...")
+    response_watchlist = requests.post(url=f"https://api.trakt.tv/users/me/lists/{name}/items", headers=headers, json={
+        ("movies" if type == "movie" else "shows"): [
+        {
+            "ids": {
+                "imdb": imdb_id
+            }
+        }
+    ]
+        
+    })
+    
+    if response_watchlist.status_code in [200, 201]:
+        print("  ✅ Watchlist importata su Trakt!")
+        return response_watchlist.json()
     else:
         print(f"  ⚠️  Errore watchlist: {response_watchlist.status_code}")
